@@ -8,6 +8,7 @@ class NamazuInstance:
         self.motorStartupDelay : float = 5.0 
         self.motionStartupDelay : float = 5.0
         self.motorRate : float = 100.0
+        # Up steps_per_mm to 80stp/mm for DOLD linear achse?
         self.steps_per_mm : float = 27.0
         self.comport : str = comport
         self.baudrate : int = 921600
