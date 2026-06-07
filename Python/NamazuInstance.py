@@ -73,27 +73,28 @@ class NamazuInstance:
         response = self.serial_object.readline().decode().strip()  # Decode bytes to string and remove trailing newline
         return response.startswith("OK")
 
-    def load_config(self, config_path):
-        import json
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-            self.motorStartupDelay = config.get("motorStartupDelay", self.motorStartupDelay)
-            self.motionStartupDelay = config.get("motionStartupDelay", self.motionStartupDelay)
-            self.motorRate = config.get("motorRate", self.motorRate)
-            self.steps_per_mm = config.get("steps_per_mm", self.steps_per_mm)
-            self.baudrate = config.get("baudrate", self.baudrate)
+    # def load_config(self, config_path):
+    #     import json
+    #     with open(config_path, 'r') as f:
+    #         config = json.load(f)
+    #         self.motorStartupDelay = config.get("motorStartupDelay", self.motorStartupDelay)
+    #         self.motionStartupDelay = config.get("motionStartupDelay", self.motionStartupDelay)
+    #         self.motorRate = config.get("motorRate", self.motorRate)
+    #         self.steps_per_mm = config.get("steps_per_mm", self.steps_per_mm)
+    #         self.baudrate = config.get("baudrate", self.baudrate)
 
-    def save_config(self, config_path):
-        import json
-        config = {
-            "motorStartupDelay": self.motorStartupDelay,
-            "motionStartupDelay": self.motionStartupDelay,
-            "motorRate": self.motorRate,
-            "steps_per_mm": self.steps_per_mm,
-            "baudrate": self.baudrate
-        }
-        with open(config_path, 'w') as f:
-            json.dump(config, f, indent=4)
+    # def save_config(self, config_path):
+    #     import json
+    #     config = {
+    #         "motorStartupDelay": self.motorStartupDelay,
+    #         "motionStartupDelay": self.motionStartupDelay,
+    #         "motorRate": self.motorRate,
+    #         "steps_per_mm": self.steps_per_mm,
+    #         "baudrate": self.baudrate
+       # }
+    #     with open(config_path, 'w') as f:
+               # json.dump(config, f, indent=4)
+
 
     def query_status(self):
         """
