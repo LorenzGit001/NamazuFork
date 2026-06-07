@@ -12,13 +12,14 @@ class NamazuInstance:
         self.comport : str = comport
         self.baudrate : int = 921600
         self.serial_object = None
-
-        try:
-            self.load_config("config/config.json")
-        except Exception as e:
-            print(f"Error loading config: {e}")
-            print("Using default parameters and creating config file.")
-            self.save_config("config/config.json")
+        
+# disable config and leave motor config harcoded
+       # try:
+        #    self.load_config("config/config.json")
+        #except Exception as e:
+         #   print(f"Error loading config: {e}")
+          #  print("Using default parameters and creating config file.")
+           # self.save_config("config/config.json")
 
     def send_command(self, command):
         #split char into lines and store them in an array
