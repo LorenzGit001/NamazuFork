@@ -31,7 +31,8 @@ class MinimalShakingUI:
     # Fixed signal parameters
     FREQUENCY = 1.0      # Hz
     AMPLITUDE = 10.0     # mm
-    DURATION = 10.0      # seconds
+    # duration was 10s and upgraded to 30s, for better visibility
+    DURATION = 30.0      # seconds
     SAMPLE_RATE = 100.0  # Hz
     # Add frequency sweep parameters:
     START_FREQ = 0.5     # Hz
@@ -413,9 +414,10 @@ class MinimalShakingUI:
         """Reset UI after shake completes"""
         self.is_shaking = False
         self.run_btn.config(state='normal', bg='#4CAF50')
+        # Turned off regeneration after shake to avoid inefficient double generation. The signal is now generated once at startup and when connecting to the device. 
         # Regenerate signal for next run
-        if self.namazu_instance:
-            self.regenerate_with_device()
+        # if self.namazu_instance:
+           #  self.regenerate_with_device()
     
     def stop_shake(self):
         """Stop the shaking"""
