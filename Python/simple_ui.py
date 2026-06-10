@@ -50,6 +50,8 @@ class MinimalShakingUI:
         self.current_signal = None
         self.shaking_data = None
         self.namazu_instance = None
+        # Flag to avoid re-sending marvCode if already loaded on device
+        self.marvcode_loaded = False
         self.is_shaking = False
         self.shake_thread = None
         self.stop_shake_flag = threading.Event()
@@ -168,6 +170,17 @@ class MinimalShakingUI:
                 self.shaking_data.generate_signal()
                 self.current_signal = self.shaking_data.inputSignal
                 print("Regenerated signal with device")
+
+                # Send MarvCode only if it hasn't been uploaded to the device yet
+                if not self.marvcode_loaded:
+                    marv = getattr(self.shaking_data, 'marvCode', None)
+                    if marv:
+                        try:
+                            self.namazu_instance.send_command(marv)
+                            self.marvcode_loaded = True
+                            print("MarvCode uploaded to device")
+                        except Exception as send_err:
+                            print(f"Error uploading MarvCode during regeneration: {send_err}")
             except Exception as e:
                 print(f"Error regenerating with device: {e}")
 
@@ -407,7 +420,8 @@ class MinimalShakingUI:
                 self.root.after(0, lambda: self.status_var.set("Shaking completed"))
                 
         except Exception as e:
-            self.root.after(0, lambda: self.status_var.set(f"Error: {e}"))
+            msg = f"Error: {e}"
+            self.root.after(0, lambda m=msg: self.status_var.set(m))
         finally:
             self.root.after(0, self._shake_finished)
     
