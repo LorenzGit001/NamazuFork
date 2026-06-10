@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import numpy as np
+# install pyserial? 
 import serial.tools.list_ports
 
 # Add Classes directory to path
@@ -29,13 +30,13 @@ class MinimalShakingUI:
     """Minimal UI - Fixed harmonic signal with Run/Stop only"""
     
     # Fixed signal parameters
-    FREQUENCY = 1.0      # Hz
-    AMPLITUDE = 10.0     # mm
+    #FREQUENCY = 1.0      # Hz
+    AMPLITUDE = 7.0     # mm
     # duration was 10s and upgraded to 30s, for better visibility
-    DURATION = 30.0      # seconds
+    DURATION = 40.0      # seconds
     SAMPLE_RATE = 100.0  # Hz
     # Add frequency sweep parameters:
-    START_FREQ = 0.5     # Hz
+    START_FREQ = 0.2     # Hz
     END_FREQ = 5.0       # Hz
     
 
@@ -369,8 +370,8 @@ class MinimalShakingUI:
         
         try:
             # Send MarvCode
-            self.status_var.set("Sending signal to device...")
-            self.namazu_instance.send_command(self.shaking_data.marvCode)
+           # self.status_var.set("Sending signal to device...")
+           # self.namazu_instance.send_command(self.shaking_data.marvCode)
             
             # Start shaking
             self.stop_shake_flag.clear()
