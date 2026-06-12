@@ -66,15 +66,8 @@ class MinimalShakingUI:
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
     
     def generate_fixed_signal(self):
-        """Generate the fixed harmonic signal"""
-        try:
-            # First, let's check what parameters FixedHarmonicShakingData expects
-            # by looking at its parameter definitions
-           # param_defs = FixedHarmonicShakingData.get_parameter_definitions()
-            #print("FixedHarmonicShakingData expects these parameters:")
-            #for p in param_defs:
-               # print(f"  - {p.name}: {p.type} (default: {p.default})")
-                
+        """Generate the signal"""
+        try:     
             param_defs = FrequencySweepShakingData.get_parameter_definitions()
             print("FrequencySweepShakingData expects these parameters:")
             for p in param_defs:
@@ -216,7 +209,6 @@ class MinimalShakingUI:
         
         self.conn_label = ttk.Label(status_row, text="Not Connected", font=('Arial', 10))
         self.conn_label.pack(side='left', padx=(0, 20))
-        
         self.connect_btn = ttk.Button(status_row, text="Connect", command=self.toggle_connection)
         self.connect_btn.pack(side='right')
         
@@ -335,15 +327,31 @@ class MinimalShakingUI:
             self.status_var.set(f"Connecting to {comport}...")
             self.namazu_instance = NamazuInstance(comport)
             self.namazu_instance.connect()
+
+            # show uploading state and run regeneration in background
+            self.conn_label.config(text="Connected - uploading signal...")
+            self.conn_canvas.itemconfig(self.conn_light, fill='orange')
+
+            def _upload_worker(port):
+                try:
+                    self.regenerate_with_device()
+                except Exception as e:
+                    self.root.after(0, lambda: (
+                        self.conn_canvas.itemconfig(self.conn_light, fill='red'),
+                        self.conn_label.config(text="Upload Failed"),
+                        self.status_var.set(f"Upload failed: {e}"),
+                        messagebox.showerror("Upload Error", str(e))
+                    ))
+                    return
+                self.root.after(0, lambda: (
+                    self.conn_canvas.itemconfig(self.conn_light, fill='#00ff00'),
+                    self.conn_label.config(text=f"Connected - {port}"),
+                    self.connect_btn.config(text="Disconnect"),
+                    self.status_var.set(f"Connected to {port} - Ready")
+                ))
+
+            threading.Thread(target=_upload_worker, args=(comport,), daemon=True).start()
             
-            # Regenerate signal with device for MarvCode
-            self.regenerate_with_device()
-            
-            # Update UI
-            self.conn_canvas.itemconfig(self.conn_light, fill='#00ff00')
-            self.conn_label.config(text=f"Connected - {comport}")
-            self.connect_btn.config(text="Disconnect")
-            self.status_var.set(f"Connected to {comport} - Ready")
             
         except Exception as e:
             self.conn_canvas.itemconfig(self.conn_light, fill='red')
@@ -362,6 +370,9 @@ class MinimalShakingUI:
             self.namazu_instance.disconnect()
             self.namazu_instance = None
             
+        # Reset upload flag so next connection uploads fresh
+        self.marvcode_loaded = False 
+
         self.conn_canvas.itemconfig(self.conn_light, fill='gray')
         self.conn_label.config(text="Not Connected")
         self.connect_btn.config(text="Connect")
@@ -471,4 +482,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+
