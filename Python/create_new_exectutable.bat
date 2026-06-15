@@ -3,7 +3,8 @@ echo ========================================
 echo Building simple_ui.exe WITH ICON
 echo ========================================
 
-cd /d C:\Users\IRZ\Desktop\Namazu\Python
+echo cd /d C:\Users\IRZ\Desktop\NamazuFork\Python
+cd /d C:\Users\loads\NamazuFork\Python
 
 call .venv\Scripts\activate.bat
 

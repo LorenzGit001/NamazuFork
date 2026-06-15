@@ -31,13 +31,13 @@ class MinimalShakingUI:
     
     # Fixed signal parameters
     #FREQUENCY = 1.0      # Hz
-    AMPLITUDE = 7.0     # mm
+    AMPLITUDE = 1.0     # mm
     # duration was 10s and upgraded to 30s, for better visibility
     DURATION = 40.0      # seconds
     SAMPLE_RATE = 100.0  # Hz
     # Add frequency sweep parameters:
-    START_FREQ = 0.2     # Hz
-    END_FREQ = 5.0       # Hz
+    START_FREQ = 0.5     # Hz
+    END_FREQ = 13.0    # Hz
     
 
     def __init__(self, root):
