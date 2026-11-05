@@ -243,7 +243,7 @@ for iRun = 1:N
 
     runStartedAt = datetime("now", "TimeZone", "local");
 
-    [T, runMeta] = acquireOneHammerRun( ...
+    [T, analysisData, runMeta] = acquireOneHammerRun( ...
         s, ...
         NumSens, ...
         NumValsTotal, ...
@@ -272,7 +272,7 @@ for iRun = 1:N
 
     if runFFTAnalysis && runMeta.quality.usableForAnalysis
         try
-            fftResults = EstimateEigenfrequencyFFT(T, fftOptions{:});
+            fftResults = EstimateEigenfrequencyFFT(analysisData, fftOptions{:});
             freqCells{iRun} = fftResults.freqHz;
             zetaCells{iRun} = fftResults.zeta;
         catch ME
@@ -293,7 +293,13 @@ for iRun = 1:N
 
     sensorRigData = T;
     meta = runMeta;
-    save(filePath, "T", "sensorRigData", "validationMeanTable", "meta", "fftResults");
+    save(filePath, ...
+        "T", ...
+        "sensorRigData", ...
+        "analysisData", ...
+        "validationMeanTable", ...
+        "meta", ...
+        "fftResults");
     [batch, freqCells, zetaCells] = recordRunInBatch( ...
         batch, freqCells, zetaCells, iRun, filePath, T, runMeta, fftResults, analysisError);
     batch.completedRunCount = nnz(strlength(batch.files) > 0);
@@ -361,7 +367,133 @@ end
 % LOCAL HELPER FUNCTIONS
 % ========================================================================
 
-function [T, meta] = acquireOneHammerRun(s, NumSens, NumValsTotal, sampleRate, ...
+function [analysisData, adjustment] = trimLeadingStartupGap(T, varargin)
+
+parser = inputParser;
+parser.FunctionName = mfilename;
+
+addParameter(parser, "SampleRate", [], @(x) isnumeric(x) && ...
+    isscalar(x) && isfinite(x) && x > 0);
+
+addParameter(parser, "MaximumStartupSeconds", 0.1, @(x) isnumeric(x) && ...
+    isscalar(x) && isfinite(x) && x > 0);
+
+addParameter(parser, "MaximumGapSeconds", 0.1, @(x) isnumeric(x) && ...
+    isscalar(x) && isfinite(x) && x > 0);
+
+parse(parser, varargin{:});
+
+sampleRate = parser.Results.SampleRate;
+analysisData = T;
+
+adjustment = struct();
+adjustment.applied = false;
+adjustment.reason = "not applicable";
+adjustment.gapIndex = NaN;
+adjustment.gapSeconds = NaN;
+adjustment.removedRows = 0;
+adjustment.originalRows = height(T);
+adjustment.analysisRows = height(T);
+
+if isempty(sampleRate)
+    adjustment.reason = "sample rate unavailable";
+    return;
+end
+
+timeNames = string(T.Properties.VariableNames);
+
+if ismember("t_arduino_elapsed_s", timeNames)
+    time = double(T.t_arduino_elapsed_s(:));
+elseif ismember("t_arduino_s", timeNames)
+    time = double(T.t_arduino_s(:) - T.t_arduino_s(1));
+elseif ismember("t_arduino_ms", timeNames)
+    time = double(T.t_arduino_ms(:) - T.t_arduino_ms(1)) / 1000;
+else
+    adjustment.reason = "Arduino timestamp unavailable";
+    return;
+end
+
+if numel(time) < 3 || any(~isfinite(time))
+    adjustment.reason = "invalid Arduino timestamps";
+    return;
+end
+
+dt = diff(time);
+expectedDt = 1 / sampleRate;
+largeGap = isfinite(dt) & dt > 3 * expectedDt;
+gapIndices = find(largeGap);
+
+if isempty(gapIndices)
+    adjustment.reason = "no leading large gap";
+    return;
+end
+
+if numel(gapIndices) ~= 1
+    adjustment.reason = "more than one large gap";
+    return;
+end
+
+gapIndex = gapIndices(1);
+gapSeconds = dt(gapIndex);
+
+if time(gapIndex) > parser.Results.MaximumStartupSeconds
+    adjustment.reason = "large gap did not occur at startup";
+    return;
+end
+
+if gapSeconds > parser.Results.MaximumGapSeconds
+    adjustment.reason = "startup gap exceeded configured maximum";
+    return;
+end
+
+if gapIndex < 1 || gapIndex >= height(T)
+    adjustment.reason = "invalid gap location";
+    return;
+end
+
+keepRows = (gapIndex + 1):height(T);
+analysisData = T(keepRows, :);
+
+analysisTimeNames = string(analysisData.Properties.VariableNames);
+
+if ismember("t_arduino_elapsed_s", analysisTimeNames)
+    analysisData.t_arduino_elapsed_s = ...
+        analysisData.t_arduino_elapsed_s - ...
+        analysisData.t_arduino_elapsed_s(1);
+end
+
+if ismember("t_arduino_s", analysisTimeNames)
+    analysisData.t_arduino_s = ...
+        analysisData.t_arduino_s - analysisData.t_arduino_s(1);
+end
+
+if ismember("t_arduino_ms", analysisTimeNames)
+    analysisData.t_arduino_ms = ...
+        analysisData.t_arduino_ms - analysisData.t_arduino_ms(1);
+end
+
+if ismember("t_matlab_elapsed_s", analysisTimeNames)
+    analysisData.t_matlab_elapsed_s = ...
+        analysisData.t_matlab_elapsed_s - ...
+        analysisData.t_matlab_elapsed_s(1);
+end
+
+if ismember("t_matlab", analysisTimeNames)
+    analysisData.t_matlab = ...
+        analysisData.t_matlab - analysisData.t_matlab(1);
+end
+
+adjustment.applied = true;
+adjustment.reason = "single leading startup gap removed";
+adjustment.gapIndex = gapIndex;
+adjustment.gapSeconds = gapSeconds;
+adjustment.removedRows = gapIndex;
+adjustment.analysisRows = height(analysisData);
+
+end
+
+
+function [T, analysisData, meta] = acquireOneHammerRun(s, NumSens, NumValsTotal, sampleRate, ...
     durationSeconds, validationMeans, accelerometerRangeG, quantityIndex, quantityLabel, direction, ...
     useCorrectedData, makeLivePlot, plotWindowSeconds, plotUpdateRateHz, countdownAudio)
 
@@ -461,6 +593,13 @@ T.Properties.UserData.sampleRate = sampleRate;
 T.Properties.UserData.numberOfSensors = NumSens;
 T.Properties.UserData.testType = "hammer";
 
+[analysisData, startupAdjustment] = trimLeadingStartupGap(T, ...
+    "SampleRate", sampleRate);
+
+analysisData.Properties.UserData.sampleRate = sampleRate;
+analysisData.Properties.UserData.numberOfSensors = NumSens;
+analysisData.Properties.UserData.testType = "hammer";
+
 meta = struct();
 meta.sampleRate = sampleRate;
 meta.numSensors = NumSens;
@@ -476,12 +615,14 @@ meta.actualSampleRateMatlabHz = estimateSampleRate(T.t_matlab_elapsed_s);
 meta.clipping = detectAccelerationClipping(T, NumSens, accelerometerRangeG);
 meta.timeHistoryPeak = SummarizeHammerTimeHistoryPeak(T, ...
     "NumSensors", NumSens, "Direction", direction);
-meta.quality = AssessHammerRunQuality(T, ...
+meta.startupAdjustment = startupAdjustment;
+meta.quality = AssessHammerRunQuality(analysisData, ...
     "NumSensors", NumSens, ...
     "Direction", direction, ...
     "SampleRate", sampleRate, ...
     "DurationSeconds", durationSeconds, ...
     "Clipping", meta.clipping);
+
 
 end
 

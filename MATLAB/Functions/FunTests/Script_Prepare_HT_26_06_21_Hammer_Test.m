@@ -31,7 +31,7 @@ campaignFolderName = campaignId + "_" + campaignTimestamp;
 port = "COM8";             % Change if Windows assigns a different ESP32 port.
 baud = 1000000;
 numSensors = 5;
-sampleRateHz = 250;        % ESP32 firmware SAMPLE_RATE_HZ.
+sampleRateHz = 500;        % ESP32 firmware SAMPLE_RATE_HZ. 250 old 500 new?
 direction = "y";
 
 baselineDurationSeconds = 30;
